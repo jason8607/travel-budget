@@ -57,7 +57,8 @@
       }
 
       .btn,
-      .delete-btn {
+      .delete-btn,
+      .clear-btn {
         padding: 10px 18px;
         border: none;
         border-radius: 8px;
@@ -83,6 +84,22 @@
 
       .delete-btn:hover {
         background-color: #c62828;
+      }
+
+      .clear-btn {
+        background-color: #f57c00;
+        color: white;
+        margin-top: 16px;
+        margin-left: 10px;
+      }
+
+      .clear-btn:hover {
+        background-color: #ef6c00;
+      }
+
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
       }
 
       .total {
@@ -120,62 +137,96 @@
             <th></th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td><input type="text" value="機票" /></td>
-            <td>
-              <input type="number" value="11605" onchange="calculateTotal()" />
-            </td>
-            <td>
-              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
-            </td>
-          </tr>
-          <tr>
-            <td><input type="text" value="住宿" /></td>
-            <td>
-              <input type="number" value="3000" onchange="calculateTotal()" />
-            </td>
-            <td>
-              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
-            </td>
-          </tr>
-          <tr>
-            <td><input type="text" value="關西周遊卡" /></td>
-            <td>
-              <input type="number" value="603" onchange="calculateTotal()" />
-            </td>
-            <td>
-              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
-            </td>
-          </tr>
-          <tr>
-            <td><input type="text" value="環球影城門票" /></td>
-            <td>
-              <input type="number" value="2033" onchange="calculateTotal()" />
-            </td>
-            <td>
-              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
-            </td>
-          </tr>
-          <tr>
-            <td><input type="text" value="環球影城快速通關" /></td>
-            <td>
-              <input type="number" value="7184" onchange="calculateTotal()" />
-            </td>
-            <td>
-              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
-            </td>
-          </tr>
+        <tbody id="expense-tbody">
+          <!-- 表格內容將由JavaScript動態生成 -->
         </tbody>
       </table>
-      <button class="btn" onclick="addRow()">新增項目</button>
+      <div class="buttons">
+        <button class="btn" onclick="addRow()">新增項目</button>
+        <button class="clear-btn" onclick="clearData()">清除所有資料</button>
+      </div>
       <div class="total">總金額：<span id="total-amount">0</span> 元</div>
     </div>
 
     <script>
+      // 默認數據，只在首次使用時加載
+      const defaultExpenses = [
+        { item: '機票', amount: 11605 },
+        { item: '住宿', amount: 3000 },
+        { item: '關西周遊卡', amount: 603 },
+        { item: '環球影城門票', amount: 2033 },
+        { item: '環球影城快速通關', amount: 7184 },
+      ];
+
+      // 從localStorage加載數據或使用默認數據
+      function loadData() {
+        const savedData = localStorage.getItem('travelExpenses');
+        if (savedData) {
+          return JSON.parse(savedData);
+        } else {
+          return defaultExpenses;
+        }
+      }
+
+      // 保存數據到localStorage
+      function saveData(expenses) {
+        localStorage.setItem('travelExpenses', JSON.stringify(expenses));
+      }
+
+      // 清除所有數據
+      function clearData() {
+        if (confirm('確定要清除所有資料嗎？此操作無法恢復。')) {
+          localStorage.removeItem('travelExpenses');
+          renderTable(defaultExpenses);
+          calculateTotal();
+        }
+      }
+
+      // 從表格中獲取當前所有費用數據
+      function getExpensesFromTable() {
+        const rows = document.querySelectorAll('#expense-tbody tr');
+        const expenses = [];
+
+        rows.forEach((row) => {
+          const itemInput = row.querySelector('input[type="text"]');
+          const amountInput = row.querySelector('input[type="number"]');
+
+          if (itemInput && amountInput) {
+            expenses.push({
+              item: itemInput.value,
+              amount: parseFloat(amountInput.value) || 0,
+            });
+          }
+        });
+
+        return expenses;
+      }
+
+      // 渲染表格
+      function renderTable(expenses) {
+        const tbody = document.getElementById('expense-tbody');
+        tbody.innerHTML = '';
+
+        expenses.forEach((expense) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><input type="text" value="${expense.item}" oninput="saveCurrentData()"/></td>
+            <td><input type="number" value="${expense.amount}" onchange="calculateTotal(); saveCurrentData()"/></td>
+            <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      // 保存當前表格數據
+      function saveCurrentData() {
+        const expenses = getExpensesFromTable();
+        saveData(expenses);
+      }
+
       function calculateTotal() {
         const inputs = document.querySelectorAll(
-          'tbody tr input[type="number"]',
+          '#expense-tbody tr input[type="number"]',
         );
         let total = 0;
         inputs.forEach((input) => {
@@ -184,17 +235,18 @@
         });
         document.getElementById('total-amount').textContent =
           total.toLocaleString();
+        saveCurrentData();
       }
 
       function addRow() {
-        const table = document.querySelector('#expense-table tbody');
+        const tbody = document.querySelector('#expense-tbody');
         const row = document.createElement('tr');
         row.innerHTML = `
-        <td><input type="text" placeholder="項目名稱" /></td>
-        <td><input type="number" value="0" onchange="calculateTotal()" /></td>
-        <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
-      `;
-        table.appendChild(row);
+          <td><input type="text" placeholder="項目名稱" oninput="saveCurrentData()"/></td>
+          <td><input type="number" value="0" onchange="calculateTotal(); saveCurrentData()"/></td>
+          <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
+        `;
+        tbody.appendChild(row);
         calculateTotal();
       }
 
@@ -204,7 +256,12 @@
         calculateTotal();
       }
 
-      window.onload = calculateTotal;
+      // 頁面加載時初始化數據
+      window.onload = function () {
+        const expenses = loadData();
+        renderTable(expenses);
+        calculateTotal();
+      };
     </script>
   </body>
 </html>
