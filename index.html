@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <title>出國旅費試算</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Noto Sans TC', sans-serif;
+        background: linear-gradient(135deg, #2196f3, #1e88e5);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        padding: 40px 16px;
+        color: #333;
+      }
+
+      .container {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        max-width: 700px;
+        width: 100%;
+      }
+
+      h2 {
+        text-align: center;
+        color: #0d47a1;
+        margin-bottom: 24px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+      }
+
+      input[type='text'],
+      input[type='number'] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+
+      .btn,
+      .delete-btn {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.2s ease;
+      }
+
+      .btn {
+        background-color: #1976d2;
+        color: white;
+        margin-top: 16px;
+      }
+
+      .btn:hover {
+        background-color: #1565c0;
+      }
+
+      .delete-btn {
+        background-color: #e53935;
+        color: white;
+      }
+
+      .delete-btn:hover {
+        background-color: #c62828;
+      }
+
+      .total {
+        text-align: right;
+        font-size: 1.5em;
+        font-weight: bold;
+        margin-top: 24px;
+        color: #0d47a1;
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 20px;
+        }
+
+        th,
+        td {
+          padding: 8px;
+        }
+
+        .total {
+          font-size: 1.2em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>出國旅費試算</h2>
+      <table id="expense-table">
+        <thead>
+          <tr>
+            <th>項目</th>
+            <th>金額（元）</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="text" value="機票" /></td>
+            <td>
+              <input type="number" value="11605" onchange="calculateTotal()" />
+            </td>
+            <td>
+              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="text" value="住宿" /></td>
+            <td>
+              <input type="number" value="3000" onchange="calculateTotal()" />
+            </td>
+            <td>
+              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="text" value="關西周遊卡" /></td>
+            <td>
+              <input type="number" value="603" onchange="calculateTotal()" />
+            </td>
+            <td>
+              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="text" value="環球影城門票" /></td>
+            <td>
+              <input type="number" value="2033" onchange="calculateTotal()" />
+            </td>
+            <td>
+              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="text" value="環球影城快速通關" /></td>
+            <td>
+              <input type="number" value="7184" onchange="calculateTotal()" />
+            </td>
+            <td>
+              <button class="delete-btn" onclick="removeRow(this)">刪除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="btn" onclick="addRow()">新增項目</button>
+      <div class="total">總金額：<span id="total-amount">0</span> 元</div>
+    </div>
+
+    <script>
+      function calculateTotal() {
+        const inputs = document.querySelectorAll(
+          'tbody tr input[type="number"]',
+        );
+        let total = 0;
+        inputs.forEach((input) => {
+          const value = parseFloat(input.value);
+          if (!isNaN(value)) total += value;
+        });
+        document.getElementById('total-amount').textContent =
+          total.toLocaleString();
+      }
+
+      function addRow() {
+        const table = document.querySelector('#expense-table tbody');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+        <td><input type="text" placeholder="項目名稱" /></td>
+        <td><input type="number" value="0" onchange="calculateTotal()" /></td>
+        <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
+      `;
+        table.appendChild(row);
+        calculateTotal();
+      }
+
+      function removeRow(button) {
+        const row = button.closest('tr');
+        row.remove();
+        calculateTotal();
+      }
+
+      window.onload = calculateTotal;
+    </script>
+  </body>
+</html>
