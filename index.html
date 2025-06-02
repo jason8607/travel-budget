@@ -377,16 +377,29 @@
 
       // 新增天數
       function addNewDay() {
-        const expenses = loadData();
+        const expenses = getExpensesFromTable(); // 先獲取當前表格中的所有數據
         const dayCount = Object.keys(expenses).length + 1;
-        expenses[`day${dayCount}`] = [];
+        const newDayId = `day${dayCount}`;
+
+        // 添加新的一天，保持現有數據不變
+        expenses[newDayId] = [];
+
+        // 保存更新後的數據
         saveData(expenses);
+
+        // 重新渲染整個界面
         renderTabs(expenses);
-        switchTab(`day${dayCount}`);
+        renderTable(expenses);
+        switchTab(newDayId);
+        calculateTotal();
+        updateCharts();
       }
 
       // 切換天數標籤
       function switchTab(dayId) {
+        // 先保存當前數據
+        saveCurrentData();
+
         // 更新標籤狀態
         document.querySelectorAll('.tab').forEach((tab) => {
           tab.classList.remove('active');
@@ -408,6 +421,8 @@
       function renderTabs(expenses) {
         const tabsContainer = document.getElementById('day-tabs');
         const tabContentsContainer = document.getElementById('tab-contents');
+        const currentActiveTab =
+          document.querySelector('.tab.active')?.dataset.day;
 
         tabsContainer.innerHTML = '';
         tabContentsContainer.innerHTML = '';
@@ -419,12 +434,18 @@
           tab.dataset.day = dayId;
           tab.textContent = dayId.replace('day', '第') + '天';
           tab.onclick = () => switchTab(dayId);
+          if (dayId === currentActiveTab) {
+            tab.classList.add('active');
+          }
           tabsContainer.appendChild(tab);
 
           // 創建內容區域
           const content = document.createElement('div');
           content.id = `${dayId}-content`;
           content.className = 'tab-content';
+          if (dayId === currentActiveTab) {
+            content.classList.add('active');
+          }
           content.innerHTML = `
             <table id="${dayId}-table">
               <thead>
@@ -441,9 +462,18 @@
           tabContentsContainer.appendChild(content);
         });
 
-        // 預設選中第一個標籤
-        if (Object.keys(expenses).length > 0) {
-          switchTab(Object.keys(expenses)[0]);
+        // 如果沒有當前活動的標籤，選擇第一個
+        if (!currentActiveTab && Object.keys(expenses).length > 0) {
+          const firstTab = tabsContainer.querySelector('.tab');
+          if (firstTab) {
+            firstTab.classList.add('active');
+            const firstContent = document.getElementById(
+              `${firstTab.dataset.day}-content`,
+            );
+            if (firstContent) {
+              firstContent.classList.add('active');
+            }
+          }
         }
       }
 
