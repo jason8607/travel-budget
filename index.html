@@ -8,6 +8,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       body {
         margin: 0;
@@ -124,39 +125,232 @@
           font-size: 1.2em;
         }
       }
+
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 10px 20px;
+        background-color: #e3f2fd;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        color: #1976d2;
+        transition: 0.2s ease;
+      }
+
+      .tab.active {
+        background-color: #1976d2;
+        color: white;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .currency-selector {
+        margin-bottom: 15px;
+      }
+
+      .currency-selector select {
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+      }
+
+      .exchange-rate {
+        text-align: right;
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .total-container {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #e3f2fd;
+        border-radius: 8px;
+      }
+
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+      }
+
+      .add-day-btn {
+        background-color: #4caf50;
+        color: white;
+        margin-left: 10px;
+      }
+
+      .add-day-btn:hover {
+        background-color: #388e3c;
+      }
+
+      .charts-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 30px;
+      }
+
+      .chart-wrapper {
+        flex: 1;
+        min-width: 300px;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .chart-title {
+        text-align: center;
+        color: #1976d2;
+        margin-bottom: 15px;
+        font-weight: bold;
+      }
+
+      .chart-type-selector {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .chart-type-selector select {
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        background-color: white;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <h2>出國旅費試算</h2>
-      <table id="expense-table">
-        <thead>
-          <tr>
-            <th>項目</th>
-            <th>金額（元）</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="expense-tbody">
-          <!-- 表格內容將由JavaScript動態生成 -->
-        </tbody>
-      </table>
+
+      <div class="exchange-rate">
+        當前匯率：1 日幣 = <span id="exchange-rate">0.22</span> 台幣
+        <button
+          class="btn"
+          style="padding: 5px 10px; margin-left: 10px"
+          onclick="updateExchangeRate()"
+        >
+          更新匯率
+        </button>
+      </div>
+
+      <div class="tabs" id="day-tabs">
+        <!-- 天數標籤將由 JavaScript 動態生成 -->
+      </div>
+
+      <div id="tab-contents">
+        <!-- 每天的內容將由 JavaScript 動態生成 -->
+      </div>
+
       <div class="buttons">
         <button class="btn" onclick="addRow()">新增項目</button>
+        <button class="btn add-day-btn" onclick="addNewDay()">新增天數</button>
         <button class="clear-btn" onclick="clearData()">清除所有資料</button>
       </div>
-      <div class="total">總金額：<span id="total-amount">0</span> 元</div>
+
+      <div class="total-container">
+        <div class="total-row">
+          <span>日幣總額：</span>
+          <span id="total-jpy">0</span> 日幣
+        </div>
+        <div class="total-row">
+          <span>台幣總額：</span>
+          <span id="total-twd">0</span> 台幣
+        </div>
+      </div>
+
+      <div class="chart-type-selector">
+        <select id="chart-type" onchange="updateCharts()">
+          <option value="pie">支出項目圓餅圖</option>
+          <option value="bar">每日支出長條圖</option>
+        </select>
+      </div>
+
+      <div class="charts-container">
+        <div class="chart-wrapper">
+          <div class="chart-title">支出分析</div>
+          <canvas id="expense-chart"></canvas>
+        </div>
+      </div>
     </div>
 
     <script>
-      // 默認數據，只在首次使用時加載
-      const defaultExpenses = [
-        { item: '機票', amount: 11605 },
-        { item: '住宿', amount: 3000 },
-        { item: '關西周遊卡', amount: 603 },
-        { item: '環球影城門票', amount: 2033 },
-        { item: '環球影城快速通關', amount: 7184 },
-      ];
+      // 默認數據結構更新
+      const defaultExpenses = {
+        day1: [
+          { item: '機票', amount: 11605, currency: 'JPY' },
+          { item: '住宿', amount: 3000, currency: 'JPY' },
+          { item: '關西周遊卡', amount: 603, currency: 'JPY' },
+          { item: '環球影城門票', amount: 2033, currency: 'JPY' },
+          { item: '環球影城快速通關', amount: 7184, currency: 'JPY' },
+        ],
+      };
+
+      let currentExchangeRate = 0.22; // 預設匯率
+      let lastRateUpdate = null; // 記錄最後更新時間
+      const RATE_CACHE_DURATION = 1000 * 60 * 60; // 匯率快取時間（1小時）
+      let expenseChart = null;
+
+      // 更新匯率
+      async function updateExchangeRate() {
+        try {
+          // 檢查是否需要更新匯率（避免過於頻繁的 API 調用）
+          const now = new Date().getTime();
+          if (lastRateUpdate && now - lastRateUpdate < RATE_CACHE_DURATION) {
+            console.log('使用快取的匯率數據');
+            return;
+          }
+
+          // 使用 ExchangeRate-API 獲取匯率
+          const response = await fetch('https://open.er-api.com/v6/latest/JPY');
+          const data = await response.json();
+
+          if (data.result === 'success') {
+            // 獲取 JPY 對 TWD 的匯率
+            currentExchangeRate = data.rates.TWD;
+            document.getElementById('exchange-rate').textContent =
+              currentExchangeRate.toFixed(4);
+            lastRateUpdate = now;
+
+            // 更新圖表和總額
+            calculateTotal();
+
+            // 顯示更新成功訊息
+            const rateElement = document.getElementById('exchange-rate');
+            rateElement.style.color = '#4caf50';
+            setTimeout(() => {
+              rateElement.style.color = '#666';
+            }, 2000);
+          } else {
+            throw new Error('匯率數據獲取失敗');
+          }
+        } catch (error) {
+          console.error('更新匯率失敗:', error);
+          alert('更新匯率失敗，使用上次的匯率數據');
+
+          // 如果完全沒有匯率數據，使用預設值
+          if (!lastRateUpdate) {
+            currentExchangeRate = 0.22;
+            document.getElementById('exchange-rate').textContent =
+              currentExchangeRate.toFixed(4);
+          }
+        }
+      }
 
       // 從localStorage加載數據或使用默認數據
       function loadData() {
@@ -177,45 +371,141 @@
       function clearData() {
         if (confirm('確定要清除所有資料嗎？此操作無法恢復。')) {
           localStorage.removeItem('travelExpenses');
-          renderTable(defaultExpenses);
-          calculateTotal();
+          initializeApp();
         }
       }
 
-      // 從表格中獲取當前所有費用數據
-      function getExpensesFromTable() {
-        const rows = document.querySelectorAll('#expense-tbody tr');
-        const expenses = [];
+      // 新增天數
+      function addNewDay() {
+        const expenses = loadData();
+        const dayCount = Object.keys(expenses).length + 1;
+        expenses[`day${dayCount}`] = [];
+        saveData(expenses);
+        renderTabs(expenses);
+        switchTab(`day${dayCount}`);
+      }
 
-        rows.forEach((row) => {
-          const itemInput = row.querySelector('input[type="text"]');
-          const amountInput = row.querySelector('input[type="number"]');
-
-          if (itemInput && amountInput) {
-            expenses.push({
-              item: itemInput.value,
-              amount: parseFloat(amountInput.value) || 0,
-            });
+      // 切換天數標籤
+      function switchTab(dayId) {
+        // 更新標籤狀態
+        document.querySelectorAll('.tab').forEach((tab) => {
+          tab.classList.remove('active');
+          if (tab.dataset.day === dayId) {
+            tab.classList.add('active');
           }
         });
 
-        return expenses;
+        // 更新內容顯示
+        document.querySelectorAll('.tab-content').forEach((content) => {
+          content.classList.remove('active');
+          if (content.id === `${dayId}-content`) {
+            content.classList.add('active');
+          }
+        });
+      }
+
+      // 渲染天數標籤
+      function renderTabs(expenses) {
+        const tabsContainer = document.getElementById('day-tabs');
+        const tabContentsContainer = document.getElementById('tab-contents');
+
+        tabsContainer.innerHTML = '';
+        tabContentsContainer.innerHTML = '';
+
+        Object.keys(expenses).forEach((dayId) => {
+          // 創建標籤
+          const tab = document.createElement('button');
+          tab.className = 'tab';
+          tab.dataset.day = dayId;
+          tab.textContent = dayId.replace('day', '第') + '天';
+          tab.onclick = () => switchTab(dayId);
+          tabsContainer.appendChild(tab);
+
+          // 創建內容區域
+          const content = document.createElement('div');
+          content.id = `${dayId}-content`;
+          content.className = 'tab-content';
+          content.innerHTML = `
+            <table id="${dayId}-table">
+              <thead>
+                <tr>
+                  <th>項目</th>
+                  <th>金額</th>
+                  <th>幣別</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="${dayId}-tbody"></tbody>
+            </table>
+          `;
+          tabContentsContainer.appendChild(content);
+        });
+
+        // 預設選中第一個標籤
+        if (Object.keys(expenses).length > 0) {
+          switchTab(Object.keys(expenses)[0]);
+        }
       }
 
       // 渲染表格
       function renderTable(expenses) {
-        const tbody = document.getElementById('expense-tbody');
-        tbody.innerHTML = '';
+        Object.entries(expenses).forEach(([dayId, dayExpenses]) => {
+          const tbody = document.getElementById(`${dayId}-tbody`);
+          if (!tbody) return;
 
-        expenses.forEach((expense) => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td><input type="text" value="${expense.item}" oninput="saveCurrentData()"/></td>
-            <td><input type="number" value="${expense.amount}" onchange="calculateTotal(); saveCurrentData()"/></td>
-            <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
-          `;
-          tbody.appendChild(row);
+          tbody.innerHTML = '';
+          dayExpenses.forEach((expense) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td><input type="text" value="${
+                expense.item
+              }" oninput="saveCurrentData()"/></td>
+              <td><input type="number" value="${
+                expense.amount
+              }" onchange="calculateTotal(); saveCurrentData()"/></td>
+              <td>
+                <select onchange="saveCurrentData(); calculateTotal()">
+                  <option value="JPY" ${
+                    expense.currency === 'JPY' ? 'selected' : ''
+                  }>日幣</option>
+                  <option value="TWD" ${
+                    expense.currency === 'TWD' ? 'selected' : ''
+                  }>台幣</option>
+                </select>
+              </td>
+              <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
+            `;
+            tbody.appendChild(row);
+          });
         });
+      }
+
+      // 從表格中獲取當前所有費用數據
+      function getExpensesFromTable() {
+        const expenses = {};
+        document.querySelectorAll('.tab-content').forEach((content) => {
+          const dayId = content.id.replace('-content', '');
+          const rows = content.querySelectorAll('tbody tr');
+          const dayExpenses = [];
+
+          rows.forEach((row) => {
+            const itemInput = row.querySelector('input[type="text"]');
+            const amountInput = row.querySelector('input[type="number"]');
+            const currencySelect = row.querySelector('select');
+
+            if (itemInput && amountInput && currencySelect) {
+              dayExpenses.push({
+                item: itemInput.value,
+                amount: parseFloat(amountInput.value) || 0,
+                currency: currencySelect.value,
+              });
+            }
+          });
+
+          expenses[dayId] = dayExpenses;
+        });
+
+        return expenses;
       }
 
       // 保存當前表格數據
@@ -225,25 +515,50 @@
       }
 
       function calculateTotal() {
-        const inputs = document.querySelectorAll(
-          '#expense-tbody tr input[type="number"]',
-        );
-        let total = 0;
-        inputs.forEach((input) => {
-          const value = parseFloat(input.value);
-          if (!isNaN(value)) total += value;
+        const expenses = getExpensesFromTable();
+        let totalJPY = 0;
+        let totalTWD = 0;
+
+        Object.values(expenses).forEach((dayExpenses) => {
+          dayExpenses.forEach((expense) => {
+            if (expense.currency === 'JPY') {
+              totalJPY += expense.amount;
+            } else {
+              totalTWD += expense.amount;
+            }
+          });
         });
-        document.getElementById('total-amount').textContent =
-          total.toLocaleString();
+
+        // 將日幣轉換為台幣
+        const jpyInTWD = totalJPY * currentExchangeRate;
+        const finalTWD = totalTWD + jpyInTWD;
+
+        document.getElementById('total-jpy').textContent =
+          totalJPY.toLocaleString();
+        document.getElementById('total-twd').textContent =
+          finalTWD.toLocaleString();
         saveCurrentData();
+
+        // 更新圖表
+        updateCharts();
       }
 
       function addRow() {
-        const tbody = document.querySelector('#expense-tbody');
+        const activeTab = document.querySelector('.tab.active');
+        if (!activeTab) return;
+
+        const dayId = activeTab.dataset.day;
+        const tbody = document.getElementById(`${dayId}-tbody`);
         const row = document.createElement('tr');
         row.innerHTML = `
           <td><input type="text" placeholder="項目名稱" oninput="saveCurrentData()"/></td>
           <td><input type="number" value="0" onchange="calculateTotal(); saveCurrentData()"/></td>
+          <td>
+            <select onchange="saveCurrentData(); calculateTotal()">
+              <option value="JPY">日幣</option>
+              <option value="TWD">台幣</option>
+            </select>
+          </td>
           <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
         `;
         tbody.appendChild(row);
@@ -256,12 +571,178 @@
         calculateTotal();
       }
 
-      // 頁面加載時初始化數據
-      window.onload = function () {
+      // 更新圖表
+      function updateCharts() {
+        const chartType = document.getElementById('chart-type').value;
+        const expenses = getExpensesFromTable();
+
+        if (chartType === 'pie') {
+          updatePieChart(expenses);
+        } else {
+          updateBarChart(expenses);
+        }
+      }
+
+      // 更新圓餅圖
+      function updatePieChart(expenses) {
+        const itemTotals = {};
+
+        // 計算每個項目的總額（轉換為台幣）
+        Object.values(expenses).forEach((dayExpenses) => {
+          dayExpenses.forEach((expense) => {
+            const amount =
+              expense.currency === 'JPY'
+                ? expense.amount * currentExchangeRate
+                : expense.amount;
+
+            if (!itemTotals[expense.item]) {
+              itemTotals[expense.item] = 0;
+            }
+            itemTotals[expense.item] += amount;
+          });
+        });
+
+        // 準備圖表數據
+        const labels = Object.keys(itemTotals);
+        const data = Object.values(itemTotals);
+
+        // 生成隨機顏色
+        const colors = labels.map(
+          () => `hsl(${Math.random() * 360}, 70%, 50%)`,
+        );
+
+        // 銷毀現有圖表
+        if (expenseChart) {
+          expenseChart.destroy();
+        }
+
+        // 創建新圖表
+        const ctx = document.getElementById('expense-chart').getContext('2d');
+        expenseChart = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  font: {
+                    family: "'Noto Sans TC', sans-serif",
+                  },
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const value = context.raw;
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0,
+                    );
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return `${
+                      context.label
+                    }: ${value.toLocaleString()} 台幣 (${percentage}%)`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // 更新長條圖
+      function updateBarChart(expenses) {
+        const dayTotals = {};
+
+        // 計算每天的總額（轉換為台幣）
+        Object.entries(expenses).forEach(([dayId, dayExpenses]) => {
+          const dayTotal = dayExpenses.reduce((sum, expense) => {
+            const amount =
+              expense.currency === 'JPY'
+                ? expense.amount * currentExchangeRate
+                : expense.amount;
+            return sum + amount;
+          }, 0);
+
+          dayTotals[dayId.replace('day', '第') + '天'] = dayTotal;
+        });
+
+        // 準備圖表數據
+        const labels = Object.keys(dayTotals);
+        const data = Object.values(dayTotals);
+
+        // 銷毀現有圖表
+        if (expenseChart) {
+          expenseChart.destroy();
+        }
+
+        // 創建新圖表
+        const ctx = document.getElementById('expense-chart').getContext('2d');
+        expenseChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: '每日支出（台幣）',
+                data: data,
+                backgroundColor: '#1976d2',
+                borderColor: '#1565c0',
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `${context.raw.toLocaleString()} 台幣`;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function (value) {
+                    return value.toLocaleString() + ' 元';
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // 初始化應用
+      async function initializeApp() {
         const expenses = loadData();
+        renderTabs(expenses);
         renderTable(expenses);
+        await updateExchangeRate(); // 等待匯率更新完成
         calculateTotal();
-      };
+        updateCharts();
+      }
+
+      // 頁面加載時初始化
+      window.onload = initializeApp;
     </script>
   </body>
 </html>
