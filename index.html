@@ -9,6 +9,11 @@
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -232,6 +237,94 @@
         background-color: white;
         cursor: pointer;
       }
+
+      .category-badge {
+        display: inline-block;
+        padding: 6px 18px;
+        border-radius: 16px;
+        font-size: 1em;
+        font-weight: bold;
+        color: #fff;
+        background: #4caf50;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.08);
+        border: none;
+        transition: background 0.2s;
+      }
+
+      .category-badge.food {
+        background: #4caf50;
+      }
+      .category-badge.shopping {
+        background: #2196f3;
+      }
+      .category-badge.transport {
+        background: #ff9800;
+      }
+      .category-badge.accommodation {
+        background: #9c27b0;
+      }
+      .category-badge.entertainment {
+        background: #f44336;
+      }
+      .category-badge.other {
+        background: #607d8b;
+      }
+
+      .category-select {
+        min-width: 100px;
+        border-radius: 12px;
+        border: 1.5px solid #b0bec5;
+        padding: 10px 36px 10px 14px;
+        font-size: 1em;
+        color: #333;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.08);
+      }
+
+      .category-select.active {
+        display: inline-block;
+      }
+
+      .category-filter {
+        margin-bottom: 15px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .category-filter button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 16px;
+        cursor: pointer;
+        font-size: 0.9em;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+      }
+
+      .category-filter button.active {
+        opacity: 1;
+        font-weight: bold;
+      }
+
+      .choices__inner {
+        border-radius: 16px !important;
+        background: #4caf50 !important;
+        color: #fff !important;
+        font-weight: bold;
+        min-height: 36px;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.08);
+        border: none !important;
+        padding-left: 16px !important;
+        padding-right: 32px !important;
+      }
+      .choices__list--dropdown {
+        border-radius: 12px !important;
+      }
+      .choices__item--selectable.is-highlighted {
+        background: #1976d2 !important;
+        color: #fff !important;
+      }
     </style>
   </head>
   <body>
@@ -261,6 +354,9 @@
         <button class="btn" onclick="addRow()">新增項目</button>
         <button class="btn add-day-btn" onclick="addNewDay()">新增天數</button>
         <button class="clear-btn" onclick="clearData()">清除所有資料</button>
+        <button class="btn" onclick="importOldDataToDay1()">
+          匯入舊版資料到第1天
+        </button>
       </div>
 
       <div class="total-container">
@@ -290,14 +386,49 @@
     </div>
 
     <script>
-      // 默認數據結構更新
+      // 定義支出分類
+      const EXPENSE_CATEGORIES = {
+        food: { name: '飲食', class: 'category-food' },
+        shopping: { name: '購物', class: 'category-shopping' },
+        transport: { name: '交通', class: 'category-transport' },
+        accommodation: { name: '住宿', class: 'category-accommodation' },
+        entertainment: { name: '娛樂', class: 'category-entertainment' },
+        other: { name: '其他', class: 'category-other' },
+      };
+
+      // 修改默認數據結構
       const defaultExpenses = {
-        day1: [
-          { item: '機票', amount: 11605, currency: 'JPY' },
-          { item: '住宿', amount: 3000, currency: 'JPY' },
-          { item: '關西周遊卡', amount: 603, currency: 'JPY' },
-          { item: '環球影城門票', amount: 2033, currency: 'JPY' },
-          { item: '環球影城快速通關', amount: 7184, currency: 'JPY' },
+        preparation: [
+          {
+            item: '機票',
+            amount: 11605,
+            currency: 'JPY',
+            category: 'transport',
+          },
+          {
+            item: '住宿',
+            amount: 3000,
+            currency: 'JPY',
+            category: 'accommodation',
+          },
+          {
+            item: '關西周遊卡',
+            amount: 603,
+            currency: 'JPY',
+            category: 'transport',
+          },
+          {
+            item: '環球影城門票',
+            amount: 2033,
+            currency: 'JPY',
+            category: 'entertainment',
+          },
+          {
+            item: '環球影城快速通關',
+            amount: 7184,
+            currency: 'JPY',
+            category: 'entertainment',
+          },
         ],
       };
 
@@ -375,19 +506,17 @@
         }
       }
 
-      // 新增天數
+      // 修改新增天數函數
       function addNewDay() {
-        const expenses = getExpensesFromTable(); // 先獲取當前表格中的所有數據
-        const dayCount = Object.keys(expenses).length + 1;
+        const expenses = getExpensesFromTable();
+        const dayCount =
+          Object.keys(expenses).filter((key) => key !== 'preparation').length +
+          1;
         const newDayId = `day${dayCount}`;
 
-        // 添加新的一天，保持現有數據不變
         expenses[newDayId] = [];
-
-        // 保存更新後的數據
         saveData(expenses);
 
-        // 重新渲染整個界面
         renderTabs(expenses);
         renderTable(expenses);
         switchTab(newDayId);
@@ -417,7 +546,7 @@
         });
       }
 
-      // 渲染天數標籤
+      // 修改渲染標籤函數
       function renderTabs(expenses) {
         const tabsContainer = document.getElementById('day-tabs');
         const tabContentsContainer = document.getElementById('tab-contents');
@@ -427,69 +556,166 @@
         tabsContainer.innerHTML = '';
         tabContentsContainer.innerHTML = '';
 
-        Object.keys(expenses).forEach((dayId) => {
-          // 創建標籤
-          const tab = document.createElement('button');
-          tab.className = 'tab';
-          tab.dataset.day = dayId;
-          tab.textContent = dayId.replace('day', '第') + '天';
-          tab.onclick = () => switchTab(dayId);
-          if (dayId === currentActiveTab) {
-            tab.classList.add('active');
-          }
-          tabsContainer.appendChild(tab);
+        // 先渲染行前準備標籤
+        const prepTab = document.createElement('button');
+        prepTab.className = 'tab';
+        prepTab.dataset.day = 'preparation';
+        prepTab.textContent = '行前準備';
+        prepTab.onclick = () => switchTab('preparation');
+        if ('preparation' === currentActiveTab) {
+          prepTab.classList.add('active');
+        }
+        tabsContainer.appendChild(prepTab);
 
-          // 創建內容區域
-          const content = document.createElement('div');
-          content.id = `${dayId}-content`;
-          content.className = 'tab-content';
-          if (dayId === currentActiveTab) {
-            content.classList.add('active');
-          }
-          content.innerHTML = `
-            <table id="${dayId}-table">
-              <thead>
-                <tr>
-                  <th>項目</th>
-                  <th>金額</th>
-                  <th>幣別</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="${dayId}-tbody"></tbody>
-            </table>
-          `;
-          tabContentsContainer.appendChild(content);
+        // 創建行前準備內容
+        const prepContent = document.createElement('div');
+        prepContent.id = 'preparation-content';
+        prepContent.className = 'tab-content';
+        if ('preparation' === currentActiveTab) {
+          prepContent.classList.add('active');
+        }
+        prepContent.innerHTML = `
+          <div class="category-filter" id="preparation-category-filter">
+            <button class="active" data-category="all">全部</button>
+            ${Object.entries(EXPENSE_CATEGORIES)
+              .map(
+                ([key, value]) =>
+                  `<button data-category="${key}">${value.name}</button>`,
+              )
+              .join('')}
+          </div>
+          <table id="preparation-table">
+            <thead>
+              <tr>
+                <th>項目</th>
+                <th>分類</th>
+                <th>金額</th>
+                <th>幣別</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="preparation-tbody"></tbody>
+          </table>
+        `;
+        tabContentsContainer.appendChild(prepContent);
+
+        // 渲染其他天數標籤
+        Object.keys(expenses)
+          .filter((dayId) => dayId !== 'preparation')
+          .forEach((dayId) => {
+            const tab = document.createElement('button');
+            tab.className = 'tab';
+            tab.dataset.day = dayId;
+            tab.textContent = dayId.replace('day', '第') + '天';
+            tab.onclick = () => switchTab(dayId);
+            if (dayId === currentActiveTab) {
+              tab.classList.add('active');
+            }
+            tabsContainer.appendChild(tab);
+
+            const content = document.createElement('div');
+            content.id = `${dayId}-content`;
+            content.className = 'tab-content';
+            if (dayId === currentActiveTab) {
+              content.classList.add('active');
+            }
+            content.innerHTML = `
+              <div class="category-filter" id="${dayId}-category-filter">
+                <button class="active" data-category="all">全部</button>
+                ${Object.entries(EXPENSE_CATEGORIES)
+                  .map(
+                    ([key, value]) =>
+                      `<button data-category="${key}">${value.name}</button>`,
+                  )
+                  .join('')}
+              </div>
+              <table id="${dayId}-table">
+                <thead>
+                  <tr>
+                    <th>項目</th>
+                    <th>分類</th>
+                    <th>金額</th>
+                    <th>幣別</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="${dayId}-tbody"></tbody>
+              </table>
+            `;
+            tabContentsContainer.appendChild(content);
+          });
+
+        // 設置分類過濾器事件
+        document.querySelectorAll('.category-filter').forEach((filter) => {
+          filter.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+              const buttons = filter.querySelectorAll('button');
+              buttons.forEach((btn) => btn.classList.remove('active'));
+              e.target.classList.add('active');
+              filterExpenses(filter.id.replace('-category-filter', ''));
+            }
+          });
         });
 
-        // 如果沒有當前活動的標籤，選擇第一個
-        if (!currentActiveTab && Object.keys(expenses).length > 0) {
-          const firstTab = tabsContainer.querySelector('.tab');
-          if (firstTab) {
-            firstTab.classList.add('active');
-            const firstContent = document.getElementById(
-              `${firstTab.dataset.day}-content`,
-            );
-            if (firstContent) {
-              firstContent.classList.add('active');
+        // 如果沒有當前活動的標籤，選擇行前準備
+        if (!currentActiveTab) {
+          const prepTab = tabsContainer.querySelector(
+            '[data-day="preparation"]',
+          );
+          if (prepTab) {
+            prepTab.classList.add('active');
+            const prepContent = document.getElementById('preparation-content');
+            if (prepContent) {
+              prepContent.classList.add('active');
             }
           }
         }
       }
 
-      // 渲染表格
+      // 添加分類過濾功能
+      function filterExpenses(dayId) {
+        const activeCategory = document.querySelector(
+          `#${dayId}-category-filter .active`,
+        ).dataset.category;
+        const rows = document.querySelectorAll(`#${dayId}-tbody tr`);
+
+        rows.forEach((row) => {
+          const category = row.dataset.category;
+          if (activeCategory === 'all' || category === activeCategory) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      }
+
+      // 修改渲染表格函數
       function renderTable(expenses) {
         Object.entries(expenses).forEach(([dayId, dayExpenses]) => {
           const tbody = document.getElementById(`${dayId}-tbody`);
           if (!tbody) return;
-
           tbody.innerHTML = '';
-          dayExpenses.forEach((expense) => {
+          dayExpenses.forEach((expense, idx) => {
             const row = document.createElement('tr');
+            const category = expense.category || 'other';
+            row.dataset.category = category;
+            const selectId = `${dayId}-select-${idx}`;
             row.innerHTML = `
               <td><input type="text" value="${
                 expense.item
               }" oninput="saveCurrentData()"/></td>
+              <td style="min-width:120px;">
+                <select class="category-select" id="${selectId}" data-day="${dayId}" data-idx="${idx}">
+                  ${Object.entries(EXPENSE_CATEGORIES)
+                    .map(
+                      ([key, value]) =>
+                        `<option value="${key}" ${
+                          category === key ? 'selected' : ''
+                        }>${value.name}</option>`,
+                    )
+                    .join('')}
+                </select>
+              </td>
               <td><input type="number" value="${
                 expense.amount
               }" onchange="calculateTotal(); saveCurrentData()"/></td>
@@ -508,9 +734,45 @@
             tbody.appendChild(row);
           });
         });
+        setTimeout(initChoices, 0);
       }
 
-      // 從表格中獲取當前所有費用數據
+      function addRow() {
+        const activeTab = document.querySelector('.tab.active');
+        if (!activeTab) return;
+        const dayId = activeTab.dataset.day;
+        const tbody = document.getElementById(`${dayId}-tbody`);
+        const idx = tbody.children.length;
+        const selectId = `${dayId}-select-${idx}`;
+        const row = document.createElement('tr');
+        row.dataset.category = 'other';
+        row.innerHTML = `
+          <td><input type="text" placeholder="項目名稱" oninput="saveCurrentData()"/></td>
+          <td style="min-width:120px;">
+            <select class="category-select" id="${selectId}" data-day="${dayId}" data-idx="${idx}">
+              ${Object.entries(EXPENSE_CATEGORIES)
+                .map(
+                  ([key, value]) =>
+                    `<option value="${key}">${value.name}</option>`,
+                )
+                .join('')}
+            </select>
+          </td>
+          <td><input type="number" value="0" onchange="calculateTotal(); saveCurrentData()"/></td>
+          <td>
+            <select onchange="saveCurrentData(); calculateTotal()">
+              <option value="JPY">日幣</option>
+              <option value="TWD">台幣</option>
+            </select>
+          </td>
+          <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
+        `;
+        tbody.appendChild(row);
+        setTimeout(initChoices, 0);
+        calculateTotal();
+      }
+
+      // 修改從表格獲取數據的函數
       function getExpensesFromTable() {
         const expenses = {};
         document.querySelectorAll('.tab-content').forEach((content) => {
@@ -521,13 +783,15 @@
           rows.forEach((row) => {
             const itemInput = row.querySelector('input[type="text"]');
             const amountInput = row.querySelector('input[type="number"]');
-            const currencySelect = row.querySelector('select');
+            const currencySelect = row.querySelector('select:last-of-type');
+            const categorySelect = row.querySelector('.category-select');
 
-            if (itemInput && amountInput && currencySelect) {
+            if (itemInput && amountInput && currencySelect && categorySelect) {
               dayExpenses.push({
                 item: itemInput.value,
                 amount: parseFloat(amountInput.value) || 0,
                 currency: currencySelect.value,
+                category: categorySelect.value,
               });
             }
           });
@@ -571,34 +835,6 @@
 
         // 更新圖表
         updateCharts();
-      }
-
-      function addRow() {
-        const activeTab = document.querySelector('.tab.active');
-        if (!activeTab) return;
-
-        const dayId = activeTab.dataset.day;
-        const tbody = document.getElementById(`${dayId}-tbody`);
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td><input type="text" placeholder="項目名稱" oninput="saveCurrentData()"/></td>
-          <td><input type="number" value="0" onchange="calculateTotal(); saveCurrentData()"/></td>
-          <td>
-            <select onchange="saveCurrentData(); calculateTotal()">
-              <option value="JPY">日幣</option>
-              <option value="TWD">台幣</option>
-            </select>
-          </td>
-          <td><button class="delete-btn" onclick="removeRow(this)">刪除</button></td>
-        `;
-        tbody.appendChild(row);
-        calculateTotal();
-      }
-
-      function removeRow(button) {
-        const row = button.closest('tr');
-        row.remove();
-        calculateTotal();
       }
 
       // 更新圖表
@@ -773,6 +1009,79 @@
 
       // 頁面加載時初始化
       window.onload = initializeApp;
+
+      // Choices.js 初始化
+      function initChoices() {
+        document.querySelectorAll('.category-select').forEach((el) => {
+          if (!el.classList.contains('choices-initialized')) {
+            new Choices(el, {
+              searchEnabled: false,
+              itemSelectText: '',
+              shouldSort: false,
+              classNames: {
+                containerOuter: 'choices choices--badge',
+              },
+            });
+            el.classList.add('choices-initialized');
+          }
+        });
+        // 綁定 change 事件，更新資料與 tr 屬性
+        document.querySelectorAll('.category-select').forEach((el) => {
+          el.onchange = function () {
+            const dayId = el.getAttribute('data-day');
+            const idx = el.getAttribute('data-idx');
+            const expenses = getExpensesFromTable();
+            expenses[dayId][idx].category = el.value;
+            saveData(expenses);
+            calculateTotal();
+            // 同步 tr 的 data-category
+            const tr = el.closest('tr');
+            if (tr) tr.dataset.category = el.value;
+            // 重新套用分類過濾（如果有啟用）
+            const filter = document.querySelector(
+              `#${dayId}-category-filter .active`,
+            );
+            if (filter) filterExpenses(dayId);
+          };
+          // 初始化時也要設一次
+          const tr = el.closest('tr');
+          if (tr) tr.dataset.category = el.value;
+        });
+      }
+
+      function importOldDataToDay1() {
+        // 嘗試讀取舊版資料
+        const old = localStorage.getItem('travelExpenses');
+        if (!old) {
+          alert('找不到舊版資料');
+          return;
+        }
+        let oldData;
+        try {
+          oldData = JSON.parse(old);
+        } catch {
+          alert('舊版資料格式錯誤');
+          return;
+        }
+        // 判斷是否為舊版陣列格式
+        if (!Array.isArray(oldData)) {
+          alert('舊版資料不是陣列格式，無法自動匯入');
+          return;
+        }
+        // 讀取新版資料
+        const newData = loadData();
+        // 寫入 day1
+        newData.day1 = oldData.map((item) => ({
+          ...item,
+          category: item.category || 'other',
+          currency: item.currency || 'JPY',
+        }));
+        saveData(newData);
+        renderTabs(newData);
+        renderTable(newData);
+        calculateTotal();
+        alert('舊版資料已匯入第1天！');
+      }
     </script>
   </body>
 </html>
